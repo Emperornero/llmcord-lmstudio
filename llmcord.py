@@ -2,7 +2,10 @@ import asyncio
 from datetime import datetime
 import logging
 import os
-
+import requests
+import base64
+import io
+from PIL import Image
 import discord
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -25,6 +28,7 @@ LLM_CONFIG = {
     },
 }
 LLM_VISION_SUPPORT = "vision" in os.environ["LLM"]
+STABLE_DIFFUSION_URL = "http://localhost:7860"  # Modify as needed
 MAX_IMAGES = int(os.environ["MAX_IMAGES"]) if LLM_VISION_SUPPORT else 0
 MAX_MESSAGES = int(os.environ["MAX_MESSAGES"])
 MAX_IMAGE_WARNING = f"⚠️ Max {MAX_IMAGES} image{'' if MAX_IMAGES == 1 else 's'} per message" if MAX_IMAGES > 0 else "⚠️ Can't see images"
@@ -182,6 +186,33 @@ async def on_message(message):
                         edit_message_task = asyncio.create_task(response_messages[-1].edit(embed=embed))
                         last_message_task_time = datetime.now().timestamp()
             previous_content = current_content
+
+    if 'draw me' in message.content.lower():
+        # Extract and modify the prompt
+        prompt_text = message.content.split('draw me')[1].strip()
+
+        # Generate image using Stable Diffusion API
+        sd_payload = {
+            "prompt": prompt_text,
+            "negative_prompt": "worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, hats",
+            "steps": 50,
+            "width": 1024,
+            "height": 1024, # Adjust the number of steps as needed
+        }
+        sd_response = requests.post(url=f'{STABLE_DIFFUSION_URL}/sdapi/v1/txt2img', json=sd_payload)
+
+        if sd_response.status_code == 200:
+            r = sd_response.json()
+            image = Image.open(io.BytesIO(base64.b64decode(r['images'][0])))
+            image_path = 'generated_image.png'
+            image.save(image_path)
+            with open(image_path, 'rb') as img_file:
+                await message.reply(file=discord.File(img_file, 'generated_image.png'))
+        else:
+            await message.reply("Sorry, I couldn't generate the image.")
+
+
+            return
 
         # Create MessageNode(s) for bot reply message(s) (can be multiple if bot reply was long)
         for response_message in response_messages:
