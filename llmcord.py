@@ -9,15 +9,15 @@ from openai import AsyncOpenAI
 
 load_dotenv()
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s.%(msecs)03d %(levelname)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 LLM_CONFIG = {
-    "gpt": {
-        "api_key": os.environ["OPENAI_API_KEY"],
-        "base_url": "https://api.openai.com/v1",
+    "local": {
+        "api_key": os.environ["LOCAL_API_KEY"],
+        "base_url": "http://localhost:1234/v1",
     },
     "mistral": {
         "api_key": os.environ["MISTRAL_API_KEY"],
@@ -29,7 +29,7 @@ MAX_IMAGES = int(os.environ["MAX_IMAGES"]) if LLM_VISION_SUPPORT else 0
 MAX_MESSAGES = int(os.environ["MAX_MESSAGES"])
 MAX_IMAGE_WARNING = f"⚠️ Max {MAX_IMAGES} image{'' if MAX_IMAGES == 1 else 's'} per message" if MAX_IMAGES > 0 else "⚠️ Can't see images"
 MAX_MESSAGE_WARNING = f"⚠️ Only using last {MAX_MESSAGES} messages"
-MAX_COMPLETION_TOKENS = 1024
+MAX_COMPLETION_TOKENS = 2048
 EMBED_COLOR = {"incomplete": discord.Color.orange(), "complete": discord.Color.green()}
 EMBED_MAX_LENGTH = 4096
 EDITS_PER_SECOND = 1.3
@@ -51,7 +51,7 @@ class MessageNode:
 
 
 def get_system_prompt():
-    if os.environ["LLM"] == "gpt-4-vision-preview" or "mistral" in os.environ["LLM"]:
+    if os.environ["LLM"] == "local-model" or "mistral" in os.environ["LLM"]:
         # Temporary fix until gpt-4-vision-preview and Mistral API support message.name
         return [
             {
